@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CPU Scheduling Simulator | Priority & Multilevel Queue (MLQ)</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Three.js for Interactive 3D WebGL Background -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Custom Colorful & Motion CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Interactive 3D WebGL Background Canvas -->
+  <canvas id="webgl-canvas"></canvas>
+
+  <div class="container py-4 position-relative z-index-1">
+    <!-- Header / Scrollytelling Intro -->
+    <header class="text-center py-4 mb-4 neon-glass-card animate-float">
+      <span class="badge bg-gradient-cyan text-dark mb-2 px-3 py-2 rounded-pill fw-bold text-uppercase tracking-wider">
+        Shah & Anchor Kutchhi Engineering College • SLA Stage 2
+      </span>
+      <h1 class="display-6 fw-extrabold text-white gradient-text">CPU Scheduling Simulator</h1>
+      <p class="text-light lead mb-1 opacity-85">Priority Queue Scheduling vs Multilevel Queue (MLQ) Scheduling</p>
+      <small class="text-muted font-monospace">Students: Rajvi Shah (52) & Dhruv Sosa (54) | Guide: Prof. Deepshikha Chaturvedi</small>
+    </header>
+
+    <!-- Error Alert -->
+    <div id="errorAlert" class="alert alert-danger d-none animate-shake mb-4" role="alert"></div>
+
+    <!-- Section 1: Configuration & Inputs -->
+    <section class="neon-glass-card p-4 mb-4 scroll-reveal">
+      <div class="d-flex align-items-center mb-3">
+        <div class="icon-box bg-cyan text-dark fw-bold rounded-circle me-3">1</div>
+        <h4 class="fw-bold text-white mb-0">Configuration & Process Workload</h4>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-md-2">
+          <label class="form-label text-light font-monospace small">Process ID</label>
+          <input type="text" id="procId" class="form-control neon-input" value="P6">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label text-light font-monospace small">Arrival Time (AT)</label>
+          <input type="number" id="arrTime" class="form-control neon-input" value="0" min="0">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label text-light font-monospace small">Burst Time (BT)</label>
+          <input type="number" id="burstTime" class="form-control neon-input" value="4" min="1">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label text-light font-monospace small">Priority (1=High)</label>
+          <input type="number" id="priority" class="form-control neon-input" value="2" min="1">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label text-light font-monospace small">Queue Assignment</label>
+          <select id="queueType" class="form-select neon-input">
+            <option value="System">Queue 1: System (Priority)</option>
+            <option value="Interactive" selected>Queue 2: Interactive (Round Robin)</option>
+            <option value="Background">Queue 3: Background (FCFS)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Action Buttons for Process Management -->
+      <div class="d-flex flex-wrap gap-2 mt-3 pt-2 border-top border-secondary-subtle">
+        <button id="btnAddProc" class="btn btn-glow-success btn-sm px-3">+ Add Process</button>
+        <button id="btnLoadBench" class="btn btn-outline-neon btn-sm px-3">Load Stage 1 Benchmark</button>
+        <button id="btnLoadIdle" class="btn btn-outline-neon btn-sm px-3">Load Idle CPU Scenario</button>
+        <button id="btnClearProcs" class="btn btn-glow-danger btn-sm px-3 ms-auto">Clear All</button>
+      </div>
+
+      <!-- Configured Workload Table -->
+      <div class="table-responsive mt-3 neon-table-container" style="max-height: 180px;">
+        <table class="table table-dark table-sm table-hover text-center align-middle mb-0" id="workloadTable">
+          <thead class="sticky-top bg-dark-glass">
+            <tr>
+              <th>PID</th>
+              <th>Arrival Time</th>
+              <th>Burst Time</th>
+              <th>Priority</th>
+              <th>Queue Assignment</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="workloadTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Algorithm Selection & Simulation Controls -->
+      <div class="row mt-4 pt-3 border-top border-secondary-subtle align-items-center">
+        <div class="col-lg-6 mb-3 mb-lg-0">
+          <label class="form-label text-light font-monospace small d-block mb-2">Algorithm Execution Mode</label>
+          <div class="btn-group w-100 neon-group" role="group">
+            <input type="radio" class="btn-check" name="algoMode" id="modePriority" value="priority">
+            <label class="btn btn-outline-neon" for="modePriority">Priority Scheduling</label>
+
+            <input type="radio" class="btn-check" name="algoMode" id="modeMLQ" value="mlq">
+            <label class="btn btn-outline-neon" for="modeMLQ">Multilevel Queue (MLQ)</label>
+
+            <input type="radio" class="btn-check" name="algoMode" id="modeCompare" value="compare" checked>
+            <label class="btn btn-outline-neon" for="modeCompare">Compare Both</label>
+          </div>
+        </div>
+
+        <div class="col-lg-2 mb-3 mb-lg-0">
+          <label class="form-label text-light font-monospace small">Q2 Time Quantum</label>
+          <input type="number" id="quantum" class="form-control neon-input" value="2" min="1">
+        </div>
+
+        <div class="col-lg-4 text-lg-end pt-3">
+          <button id="btnRun" class="btn btn-glow-success me-2 px-3 py-2">Run Simulation</button>
+          <button id="btnNext" class="btn btn-glow-warning me-2 px-3 py-2">Next Step</button>
+          <button id="btnReset" class="btn btn-glow-danger px-3 py-2">Reset</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Visual Gantt Chart & Step-by-Step Execution Trace -->
+    <section class="neon-glass-card p-4 mb-4 scroll-reveal">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex align-items-center">
+          <div class="icon-box bg-purple text-white fw-bold rounded-circle me-3">2</div>
+          <h4 class="fw-bold text-white mb-0">Execution Gantt Chart & Step-by-Step Trace</h4>
+        </div>
+        <span id="stepCounter" class="badge bg-cyan text-dark fs-6 px-3 py-2 pulse-badge">Step 0</span>
+      </div>
+
+      <!-- Interactive Canvas Gantt Chart -->
+      <div class="p-3 mb-3 bg-dark-glass rounded-3 border border-secondary">
+        <div class="d-flex flex-wrap gap-3 mb-2 small text-light font-monospace">
+          <span><span class="badge" style="background-color: #3b82f6;">■</span> Queue 1: System</span>
+          <span><span class="badge" style="background-color: #10b981;">■</span> Queue 2: Interactive</span>
+          <span><span class="badge" style="background-color: #f59e0b;">■</span> Queue 3: Background</span>
+          <span><span class="badge" style="background-color: #64748b;">■</span> CPU Idle</span>
+        </div>
+        <div id="ganttTimelineContainer" class="position-relative w-100 overflow-auto py-2">
+          <div id="ganttBars" class="d-flex align-items-center" style="min-height: 48px; min-width: 650px;"></div>
+          <div id="ganttTicks" class="position-relative w-100 font-monospace text-muted small mt-1" style="min-width: 650px; height: 20px;"></div>
+        </div>
+      </div>
+
+      <!-- Trace Table -->
+      <div class="table-responsive neon-table-container" style="max-height: 320px;">
+        <table class="table table-dark table-hover text-center align-middle mb-0" id="traceTable">
+          <thead class="sticky-top bg-dark-glass">
+            <tr>
+              <th>Step</th>
+              <th>Time Span</th>
+              <th>PID</th>
+              <th>Queue Type</th>
+              <th>Priority</th>
+              <th>Burst Run</th>
+              <th>Remaining</th>
+              <th>Result / Status</th>
+              <th class="text-start">Remarks</th>
+            </tr>
+          </thead>
+          <tbody id="traceTableBody">
+            <tr>
+              <td colspan="9" class="text-muted py-4">Click "Run Simulation" or "Next Step" to start execution trace.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 3: Performance Metrics & Dynamic Visual Comparison -->
+    <div class="row g-4 mb-4">
+      <div class="col-lg-6 scroll-reveal">
+        <div class="neon-glass-card p-4 h-100">
+          <div class="d-flex align-items-center mb-3">
+            <div class="icon-box bg-pink text-white fw-bold rounded-circle me-3">3</div>
+            <h4 class="fw-bold text-white mb-0">Performance Parameters</h4>
+          </div>
+          <div id="metricsContainer" class="text-light">
+            <p class="text-muted text-center py-5">Run simulation to view performance metrics.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6 scroll-reveal">
+        <div class="neon-glass-card p-4 h-100">
+          <div class="d-flex align-items-center mb-3">
+            <div class="icon-box bg-yellow text-dark fw-bold rounded-circle me-3">4</div>
+            <h4 class="fw-bold text-white mb-0">Dynamic Visual Comparison</h4>
+          </div>
+          <div style="height: 280px;" class="position-relative">
+            <canvas id="comparisonChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Core OS & Architectural Concepts Scrollytelling Panel -->
+    <section class="neon-glass-card p-4 scroll-reveal mb-5">
+      <h5 class="fw-bold text-cyan mb-3">Core OS & Architectural Concepts</h5>
+      <div class="row g-3 text-light small">
+        <div class="col-md-3">
+          <div class="p-3 bg-dark-glass rounded border border-cyan-subtle h-100">
+            <strong class="text-cyan">Priority Scheduling:</strong>
+            Dispatches processes strictly according to urgency (Priority 1 = Highest). Low-priority processes risk starvation under continuous arrivals.
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 bg-dark-glass rounded border border-success-subtle h-100">
+            <strong class="text-success">Multilevel Queue (MLQ):</strong>
+            Partitions the ready queue into distinct tiers (System, Interactive, Background) matching process characteristics and scheduling algorithms.
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 bg-dark-glass rounded border border-warning-subtle h-100">
+            <strong class="text-warning">Preemptive Hierarchy:</strong>
+            System tasks (Q1) take absolute precedence over Interactive (Q2) and Background (Q3) tasks, preempting lower-tier execution slices.
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 bg-dark-glass rounded border border-danger-subtle h-100">
+            <strong class="text-danger">Stage 3 Roadmap (MQAPS):</strong>
+            To prevent Background (Q3) starvation observed in traditional MLQ, Multi-Queue Adaptive Priority Scheduling introduces dynamic aging and migration.
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
